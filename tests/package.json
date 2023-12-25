@@ -4,7 +4,7 @@
   "private": true,
   "description": "Separate package is used for tests to demonstrate how it works with separate typescript setup",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "./test.sh"
   },
   "dependencies": {
     "@types/node": "^20.10.5",

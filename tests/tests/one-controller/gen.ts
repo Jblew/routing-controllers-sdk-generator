@@ -7,7 +7,8 @@ run().catch(console.error)
 
 async function run() {
   const code = await generateSDKCode({
-    controllers: [BlogController]
+    controllers: [BlogController],
+    nameFormatter: (name) => name.replace(/Controller$/, ""),
   })
   fs.writeFileSync(path.join(__dirname, "sdk.gen.ts"), code)
 }
