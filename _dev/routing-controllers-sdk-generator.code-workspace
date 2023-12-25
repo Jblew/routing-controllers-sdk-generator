@@ -1,0 +1,54 @@
+{
+  "folders": [
+    {
+      "path": ".."
+    }
+  ],
+  "settings": {
+    "editor.rulers": [
+      86,
+      90
+    ],
+    "editor.minimap.maxColumn": 60,
+    "editor.formatOnPaste": false,
+    "editor.formatOnType": false,
+    "editor.formatOnSave": true,
+    "editor.renderWhitespace": "all",
+    "editor.fontLigatures": true,
+    "editor.renderControlCharacters": true,
+    "editor.tabCompletion": "on",
+    "editor.tabSize": 2,
+    "files.insertFinalNewline": true,
+    "workbench.settings.editor": "json",
+    "workbench.iconTheme": "vscode-icons",
+    "files.autoSave": "onFocusChange",
+    "files.trimTrailingWhitespace": true,
+    "files.watcherExclude": {
+      "**/.git/objects/**": true,
+      "**/.git/subtree-cache/**": true,
+      "**/node_modules/*/**": true
+    },
+    "explorer.autoReveal": true,
+    "git.ignoreLimitWarning": true,
+    "breadcrumbs.enabled": true,
+    "diffEditor.ignoreTrimWhitespace": false,
+    "typescript.updateImportsOnFileMove.enabled": "always",
+    "editor.folding": true,
+    "editor.defaultFormatter": "vscode.typescript-language-features",
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit"
+    },
+    "[javascript]": {
+      "editor.defaultFormatter": "vscode.typescript-language-features"
+    },
+    "[typescript]": {
+      "editor.defaultFormatter": "vscode.typescript-language-features"
+    },
+    "deno.enable": true,
+    "deno.lint": true,
+    "deno.unstable": true,
+  },
+  "extensions": {
+    "recommendations": []
+  }
+}
