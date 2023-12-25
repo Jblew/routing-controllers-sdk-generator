@@ -1,0 +1,20 @@
+{
+  "name": "tests",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Separate package is used for tests to demonstrate how it works with separate typescript setup",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@types/node": "^20.10.5",
+    "axios": "^1.6.2",
+    "routing-controllers": "^0.10.4",
+    "routing-controllers-sdk-generator": "../sdk-generator",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  },
+  "devDependencies": {
+    "reflect-metadata": "^0.2.1"
+  }
+}

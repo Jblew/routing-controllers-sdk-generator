@@ -1,0 +1,31 @@
+{
+  "name": "routing-controllers-sdk-generator",
+  "version": "1.0.0",
+  "description": "SDK generator for routing-controllers",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc"
+  },
+  "peerDependencies": {
+    "routing-controllers": ">=0.10.4 <=1.0.0",
+    "typescript": ">=5.3.3 <=6.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Jblew/routing-controllers-sdk-generator.git"
+  },
+  "keywords": [
+    "routing-controllers",
+    "sdk"
+  ],
+  "author": "Jędrzej B. Lewandowski, MD <jedrzejblew@gmail.com>",
+  "license": "AGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/Jblew/routing-controllers-sdk-generator/issues"
+  },
+  "homepage": "https://github.com/Jblew/routing-controllers-sdk-generator#readme",
+  "devDependencies": {
+    "reflect-metadata": "^0.2.1"
+  }
+}

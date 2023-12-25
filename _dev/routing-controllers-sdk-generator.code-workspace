@@ -1,6 +1,12 @@
 {
   "folders": [
     {
+      "path": "../sdk-generator"
+    },
+    {
+      "path": "../tests"
+    },
+    {
       "path": ".."
     }
   ],
@@ -44,9 +50,7 @@
     "[typescript]": {
       "editor.defaultFormatter": "vscode.typescript-language-features"
     },
-    "deno.enable": true,
-    "deno.lint": true,
-    "deno.unstable": true,
+    "deno.enable": false
   },
   "extensions": {
     "recommendations": []
