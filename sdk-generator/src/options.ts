@@ -10,3 +10,4 @@ export interface Options {
   controllers: ClassConstructor<any>[],
   nameFormatter?: (className: string) => string
 }
+

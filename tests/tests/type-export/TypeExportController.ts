@@ -1,4 +1,3 @@
-import "reflect-metadata";
 import { Action, BodyParam, Get, JsonController, Param, Post, QueryParam, RoutingControllersOptions } from "routing-controllers";
 
 @JsonController('', {})

@@ -1,4 +1,3 @@
-import "reflect-metadata";
 import { BodyParam, Get, JsonController, Param, Post, QueryParam } from "routing-controllers";
 
 @JsonController('/blog', {})

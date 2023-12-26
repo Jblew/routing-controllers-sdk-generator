@@ -11,7 +11,7 @@ it("Generates SDK", async () => {
     tsconfigPath: `${__dirname}/../../tsconfig.json`,
     isController: (typeName: string, symbol: Symbol, sourceFile: SourceFile) => typeName.endsWith("Controller"),
     voidTypes: [],
-    allowedNodeModules: ["routing-controllers", "class-transformer", "class-validator"],
+    allowedNodeModules: ["routing-controllers"],
     skipFile: (sourceFile: SourceFile) => sourceFile.fileName.endsWith(".gen.ts"),
     controllers: [TypeExportController],
     nameFormatter: (name) => name.replace(/Controller$/, ""),

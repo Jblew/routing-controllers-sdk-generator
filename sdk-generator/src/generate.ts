@@ -66,10 +66,17 @@ ${typeImporter.emitDeclarationsForCollectedSymbols()}
 }
 
 function generateControllerCode(controller: ControllerScaffold, typeImporter: ControllerTypeImporter) {
-  return Object.entries(controller)
-    .filter(([name]) => name !== 'controller')
-    .map(([name, action]) => `      ${name}: ${generateActionHandler(action, typeImporter)},\n`)
+  return Object.values(controller)
+    .map((action) => generateActionEntry(action, typeImporter))
     .join('')
+}
+
+function generateActionEntry(action: ActionScaffold, typeImporter: ControllerTypeImporter) {
+  const name = action.action.method;
+  const indentation = ' '.repeat(6)
+  const comment = typeImporter.getCommentForClassMethod(action.controller.target.name, action.action.method)
+  const commentPadded = comment ? `${comment.split('\n').map((l) => `${indentation}${l.trim()}`).join('\n')}\n` : ''
+  return `${commentPadded}${indentation}${name}: ${generateActionHandler(action, typeImporter)},\n`
 }
 
 function generateActionHandler({ action, params, controller }: ActionScaffold, typeImporter: ControllerTypeImporter) {

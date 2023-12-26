@@ -14,12 +14,7 @@ export class ControllerTypeImporter {
   }
 
   public getReturnTypeForClassMethod(className: string, methodName: string) {
-    const classSymbol = this.controllerClassSymbols[className]
-    if (!classSymbol) throw new Error(`Class ${className} not found`)
-    const classMembers = classSymbol.members
-    if (!classMembers) throw new Error(`Class ${className} has no members`)
-    const methodSymbol = classMembers.get(methodName as any)
-    if (!methodSymbol) throw new Error(`Method ${className}.${methodName} not found`)
+    const methodSymbol = this.mustGetMethodSymbol(className, methodName)
     const type = this.program.getTypeChecker().getTypeOfSymbolAtLocation(methodSymbol, methodSymbol.valueDeclaration!)
     const signature = type.getCallSignatures()[0]
     if (!signature) throw new Error(`Method signature for ${className}.${methodName} not found`)
@@ -28,6 +23,27 @@ export class ControllerTypeImporter {
     if (isVoidType) return "void"
     this.collectSymbolsToEmit(returnType)
     return this.program.getTypeChecker().typeToString(returnType, undefined, ts.TypeFormatFlags.NoTruncation)
+  }
+
+  public getCommentForClassMethod(className: string, methodName: string): string | undefined {
+    const methodSymbol = this.mustGetMethodSymbol(className, methodName)
+    const declarations = methodSymbol.getDeclarations()
+    if (!declarations || declarations.length === 0) return
+    const methodDeclaration = declarations[0]
+    const sourceFile = methodDeclaration.getSourceFile()
+    const commentRanges = ts.getLeadingCommentRanges(sourceFile.getFullText(), methodDeclaration.getFullStart());
+    if (!commentRanges || commentRanges.length === 0) return
+    return commentRanges.map(r => sourceFile.getFullText().slice(r.pos, r.end)).join("\n")
+  }
+
+  private mustGetMethodSymbol(className: string, methodName: string) {
+    const classSymbol = this.controllerClassSymbols[className]
+    if (!classSymbol) throw new Error(`Class ${className} not found`)
+    const classMembers = classSymbol.members
+    if (!classMembers) throw new Error(`Class ${className} has no members`)
+    const methodSymbol = classMembers.get(methodName as any)
+    if (!methodSymbol) throw new Error(`Method ${className}.${methodName} not found`)
+    return methodSymbol
   }
 
   public emitDeclarationsForCollectedSymbols() {
