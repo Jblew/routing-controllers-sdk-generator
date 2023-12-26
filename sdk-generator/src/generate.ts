@@ -73,7 +73,10 @@ function generateControllerCode(controller: ControllerScaffold) {
 }
 
 function generateActionHandler({ action, params, controller }: ActionScaffold) {
-  const args = [...makeRouteParamsArgs(params), ...makeBodyArgs(params), ...makeConfigArg(params)].join(', ')
+  const args = [
+    ...makeBodyArgs(params),
+    ...makeConfigArg(params),
+  ].join(', ')
   return [
     `async (${args}): ${makeReturnType(controller, action)} => (await client({`,
     `method: '${action.type}',`,
@@ -82,10 +85,6 @@ function generateActionHandler({ action, params, controller }: ActionScaffold) {
     `params: {${makeQueryParamsObj(params).join(', ')}},`,
     `})).data`,
   ].join(' ')
-}
-
-function makeRouteParamsArgs(params: ParamMetadataArgs[]) {
-  return params.filter((p) => p.type === 'param').map((p) => `${p.name}: string`)
 }
 
 function makeUrlGenerator(controller: ControllerMetadataArgs, action: ActionMetadataArgs, params: ParamMetadataArgs[]) {
@@ -105,7 +104,7 @@ function makeBodyArgs(params: ParamMetadataArgs[]) {
 }
 
 function makeConfigArg(params: ParamMetadataArgs[]) {
-  const args = params.filter((p) => p.type === 'body-param' || p.type === 'query')
+  const args = params.filter((p) => ['query', 'body-param', 'param'].includes(p.type))
   if (args.length === 0) return []
   const names = args.map((p) => p.name!)
   assertNoDuplicates(names)
@@ -135,6 +134,7 @@ function assertNoDuplicates(names: string[]) {
 }
 
 function paramToType(param: ParamMetadataArgs) {
+  if (param.type === 'param') return ': string'
   let typeDirective = ''
   if (!param.required) typeDirective += '?'
   typeDirective += ': '

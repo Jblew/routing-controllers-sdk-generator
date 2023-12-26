@@ -26,8 +26,8 @@ it("Must allow body params", () => {
   assert.deepStrictEqual(lastCall()[0], { method: "post", url: "/blog/likes", params: {}, data: { title: "title", max: 1, optional: undefined } })
 })
 
-it("Must allow path params", () => {
-  sdk.Blog.getDate("postId123")
+it("Path params are included in config object", () => {
+  sdk.Blog.getDate({ id: "postId123" })
   assert.deepStrictEqual(lastCall()[0], { method: "get", url: "/blog/posts/postId123/date", params: {}, data: {} })
 })
 
