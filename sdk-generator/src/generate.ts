@@ -2,6 +2,7 @@ import { ClassConstructor, getMetadataArgsStorage } from "routing-controllers";
 import { ActionScaffold, ControllerScaffold, SdkScaffold } from "./types";
 import { ActionMetadataArgs } from "routing-controllers/types/metadata/args/ActionMetadataArgs";
 import { ParamMetadataArgs } from "routing-controllers/types/metadata/args/ParamMetadataArgs";
+import { ControllerMetadataArgs } from "routing-controllers/types/metadata/args/ControllerMetadataArgs";
 
 interface Options {
   controllers: ClassConstructor<any>[],
@@ -33,16 +34,17 @@ function makeControllerSdk(controller: ClassConstructor<any>): ControllerScaffol
   return actions
 }
 
-function makeActionSdk(controller: ClassConstructor<any>, action: ActionMetadataArgs): ActionScaffold {
-  const params = getMetadataArgsStorage().filterParamsWithTargetAndMethod(controller, action.method)
-  return { controller: controller.name, action, params }
+function makeActionSdk(controllerClass: ClassConstructor<any>, action: ActionMetadataArgs): ActionScaffold {
+  const params = getMetadataArgsStorage().filterParamsWithTargetAndMethod(controllerClass, action.method)
+  const [controller] = getMetadataArgsStorage().filterControllerMetadatasForClasses([controllerClass])
+  return { controller, action, params }
 }
 
 
 function generateCode(sdk: SdkScaffold) {
   const code = `/* eslint-disable */
 // Eslint is disabled for performance. This generated file may be large and change a lot.
-export function sdk({ client }: { client: HttpClientFn }) {
+export function makeSdk({ client }: { client: HttpClientFn }) {
   return {
 ${Object.entries(sdk)
       .map(([name, controller]) => `    ${name}: {\n${generateControllerCode(controller)}    }`)
@@ -75,7 +77,7 @@ function generateActionHandler({ action, params, controller }: ActionScaffold) {
   return [
     `async (${args}): ${makeReturnType(controller, action)} => (await client({`,
     `method: '${action.type}',`,
-    `url: ${makeUrlGenerator(action, params)},`,
+    `url: ${makeUrlGenerator(controller, action, params)},`,
     `data: {${makeBodyParamsObj(params).join(', ')}},`,
     `params: {${makeQueryParamsObj(params).join(', ')}},`,
     `})).data`,
@@ -86,9 +88,10 @@ function makeRouteParamsArgs(params: ParamMetadataArgs[]) {
   return params.filter((p) => p.type === 'param').map((p) => `${p.name}: string`)
 }
 
-function makeUrlGenerator(action: ActionMetadataArgs, params: ParamMetadataArgs[]) {
+function makeUrlGenerator(controller: ControllerMetadataArgs, action: ActionMetadataArgs, params: ParamMetadataArgs[]) {
+  const fullRoute = `${controller.route ?? ''}${action.route}`
   const routeParams = params.filter((p) => p.type === 'param')
-  return `'${action.route}'${routeParams.map((p) => `.replace(':${p.name}', ${p.name})`).join('')}`
+  return `'${fullRoute}'${routeParams.map((p) => `.replace(':${p.name}', ${p.name})`).join('')}`
 }
 
 function makeBodyArgs(params: ParamMetadataArgs[]) {
@@ -157,6 +160,6 @@ function paramExplicitType(t: any): string {
   }
 }
 
-function makeReturnType(controller: string, action: ActionMetadataArgs) {
+function makeReturnType(controller: ControllerMetadataArgs, action: ActionMetadataArgs) {
   return 'Promise<any>'
 }
