@@ -1,0 +1,45 @@
+import { makeSdk } from "./sdk.gen";
+import { beforeEach, it } from "node:test";
+import assert from "node:assert"
+
+let calls: any[][] = []
+const lastCall = () => calls[calls.length - 1]
+const emptyClient = async (...args: any[]) => {
+  calls.push(args)
+  return { data: {} }
+}
+const sdk = makeSdk({ client: emptyClient });
+beforeEach(() => calls = [])
+
+it("Uses correct path and method", () => {
+  sdk.Blog.getTitles()
+  assert.deepStrictEqual(lastCall()[0], { method: "get", url: "/blog/titles", params: {}, data: {} })
+})
+
+it("Must allow query params", () => {
+  sdk.Blog.getLikes({ title: "title", max: 1 })
+  assert.deepStrictEqual(lastCall()[0], { method: "get", url: "/blog/likes", params: { title: "title", optional: undefined, max: 1 }, data: {} })
+})
+
+it("Must allow body params", () => {
+  sdk.Blog.setLikes({ title: "title", max: 1 })
+  assert.deepStrictEqual(lastCall()[0], { method: "post", url: "/blog/likes", params: {}, data: { title: "title", max: 1, optional: undefined } })
+})
+
+it("Must allow path params", () => {
+  sdk.Blog.getDate("postId123")
+  assert.deepStrictEqual(lastCall()[0], { method: "get", url: "/blog/posts/postId123/date", params: {}, data: {} })
+})
+
+it("Required must be specified", () => {
+  function typeTest() {
+    // @ts-expect-error
+    sdk.Blog.getLikes({ title: "title" });
+  }
+})
+
+it("Optional may not be specified", () => {
+  function typeTest() {
+    sdk.Blog.getLikes({ title: "title", max: 1, optional: 1 });
+  }
+})
