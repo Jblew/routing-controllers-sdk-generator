@@ -4,7 +4,9 @@
   "private": true,
   "description": "Separate package is used for tests to demonstrate how it works with separate typescript setup",
   "scripts": {
-    "test": "node -r @swc/register --test tests/**/*.test.ts"
+    "test:run-tests": "node -r @swc/register --test tests/**/*.test.ts",
+    "test:types": "tsc --noEmit",
+    "test": "npm run test:run-tests && npm run test:types"
   },
   "dependencies": {
     "@swc/core": "^1.3.101",

@@ -1,6 +1,7 @@
 import { makeSdk } from "./sdk.gen";
 import { beforeEach, it } from "node:test";
 import assert from "node:assert"
+import { Equal, Expect } from "../utils";
 
 let calls: any[][] = []
 const lastCall = () => calls[calls.length - 1]
@@ -41,5 +42,19 @@ it("Required must be specified", () => {
 it("Optional may not be specified", () => {
   function typeTest() {
     sdk.Blog.getLikes({ title: "title", max: 1, optional: 1 });
+  }
+})
+
+it("Simple return type is preserved", () => {
+  async function typeTest() {
+    const ret = await sdk.Blog.getLikes({ title: "title", max: 1 });
+    type Test = Expect<Equal<typeof ret, number>>;
+  }
+})
+
+it("Array return type is preserved", () => {
+  async function typeTest() {
+    const ret = await sdk.Blog.getTitles();
+    type Test = Expect<Equal<typeof ret, string[]>>;
   }
 })

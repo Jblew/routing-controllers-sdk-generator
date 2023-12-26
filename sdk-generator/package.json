@@ -26,6 +26,7 @@
   },
   "homepage": "https://github.com/Jblew/routing-controllers-sdk-generator#readme",
   "devDependencies": {
+    "@types/node": "^20.10.5",
     "reflect-metadata": "^0.2.1"
   }
 }

@@ -3,15 +3,13 @@ import { ActionScaffold, ControllerScaffold, SdkScaffold } from "./types";
 import { ActionMetadataArgs } from "routing-controllers/types/metadata/args/ActionMetadataArgs";
 import { ParamMetadataArgs } from "routing-controllers/types/metadata/args/ParamMetadataArgs";
 import { ControllerMetadataArgs } from "routing-controllers/types/metadata/args/ControllerMetadataArgs";
-
-interface Options {
-  controllers: ClassConstructor<any>[],
-  nameFormatter?: (className: string) => string
-}
+import { ControllerTypeImporter } from "./ControllerTypeImporter";
+import { Options } from "./options";
 
 export async function generateSDKCode(o: Options): Promise<string> {
+  const typeImporter = ControllerTypeImporter.withOptions(o)
   const scaffold = generateScaffold(o)
-  return generateCode(scaffold)
+  return generateCode(scaffold, typeImporter)
 }
 
 function generateScaffold(o: Options): SdkScaffold {
@@ -41,13 +39,13 @@ function makeActionSdk(controllerClass: ClassConstructor<any>, action: ActionMet
 }
 
 
-function generateCode(sdk: SdkScaffold) {
+function generateCode(sdk: SdkScaffold, typeImporter: ControllerTypeImporter) {
   const code = `/* eslint-disable */
 // Eslint is disabled for performance. This generated file may be large and change a lot.
 export function makeSdk({ client }: { client: HttpClientFn }) {
   return {
 ${Object.entries(sdk)
-      .map(([name, controller]) => `    ${name}: {\n${generateControllerCode(controller)}    }`)
+      .map(([name, controller]) => `    ${name}: {\n${generateControllerCode(controller, typeImporter)}    }`)
       .join(',\n')}
   } as const
 }
@@ -61,24 +59,26 @@ interface HttpCallOptions {
 }
 type HttpClientFn = (o: HttpCallOptions) => Promise<{ data: any }>
 
+${typeImporter.emitDeclarationsForCollectedSymbols()}
+
 /* eslint-enable */\n`
   return code
 }
 
-function generateControllerCode(controller: ControllerScaffold) {
+function generateControllerCode(controller: ControllerScaffold, typeImporter: ControllerTypeImporter) {
   return Object.entries(controller)
     .filter(([name]) => name !== 'controller')
-    .map(([name, action]) => `      ${name}: ${generateActionHandler(action)},\n`)
+    .map(([name, action]) => `      ${name}: ${generateActionHandler(action, typeImporter)},\n`)
     .join('')
 }
 
-function generateActionHandler({ action, params, controller }: ActionScaffold) {
+function generateActionHandler({ action, params, controller }: ActionScaffold, typeImporter: ControllerTypeImporter) {
   const args = [
     ...makeBodyArgs(params),
     ...makeConfigArg(params),
   ].join(', ')
   return [
-    `async (${args}): ${makeReturnType(controller, action)} => (await client({`,
+    `async (${args}): ${makeReturnType(controller, action, typeImporter)} => (await client({`,
     `method: '${action.type}',`,
     `url: ${makeUrlGenerator(controller, action, params)},`,
     `data: {${makeBodyParamsObj(params).join(', ')}},`,
@@ -160,6 +160,8 @@ function paramExplicitType(t: any): string {
   }
 }
 
-function makeReturnType(controller: ControllerMetadataArgs, action: ActionMetadataArgs) {
-  return 'Promise<any>'
+function makeReturnType(controller: ControllerMetadataArgs, action: ActionMetadataArgs, typeImporter: ControllerTypeImporter) {
+  const type = typeImporter.getReturnTypeForClassMethod(controller.target.name, action.method)
+  if (type.startsWith('Promise<')) return type
+  return `Promise<${type}>`
 }
