@@ -2,6 +2,13 @@ import * as ts from "typescript"
 import * as path from "path"
 import { Options } from "./options"
 
+export interface ArgumentTypeDescriptor {
+  paramName: string
+  typeName: string
+  decorators: ts.Decorator[]
+  isOptional: boolean
+}
+
 export class ControllerTypeImporter {
   private controllerClassSymbols: { [name: string]: ts.Symbol } = {}
   private symbolsToEmit: Set<ts.Symbol> = new Set()
@@ -13,11 +20,35 @@ export class ControllerTypeImporter {
     this.extractTypes()
   }
 
-  public getReturnTypeForClassMethod(className: string, methodName: string) {
+  public getSignatureTypes(className: string, methodName: string) {
     const methodSymbol = this.mustGetMethodSymbol(className, methodName)
     const type = this.program.getTypeChecker().getTypeOfSymbolAtLocation(methodSymbol, methodSymbol.valueDeclaration!)
     const signature = type.getCallSignatures()[0]
     if (!signature) throw new Error(`Method signature for ${className}.${methodName} not found`)
+    const comment = this.getMethodComment(methodSymbol)
+    const returnType = this.getReturnType(signature)
+    const argumentTypes = this.getArgumentTypes(signature)
+    return { argumentTypes, returnType, comment }
+  }
+
+  private getArgumentTypes(signature: ts.Signature): ArgumentTypeDescriptor[] {
+    const parameters = signature.getParameters()
+    const args: ArgumentTypeDescriptor[] = []
+    for (const parameter of parameters) {
+      const paramName = parameter.name
+      const type = this.program.getTypeChecker().getTypeOfSymbolAtLocation(parameter, parameter.valueDeclaration!)
+      const isOptional = type.isUnion() && type.types.some((t) => t.flags === ts.TypeFlags.Undefined)
+      this.collectSymbolsToEmit(type)
+      const typeName = this.program.getTypeChecker().typeToString(type, undefined, ts.TypeFormatFlags.NoTruncation)
+      const valueDeclaration = parameter.valueDeclaration
+      const modifiers = valueDeclaration && ts.isParameter(valueDeclaration) ? valueDeclaration.modifiers : undefined
+      const decorators: ts.Decorator[] = modifiers ? modifiers.filter((m) => m.kind === ts.SyntaxKind.Decorator).map((d) => d as ts.Decorator) : []
+      args.push({ paramName, typeName, decorators, isOptional })
+    }
+    return args
+  }
+
+  private getReturnType(signature: ts.Signature) {
     const returnType = this.program.getTypeChecker().getReturnTypeOfSignature(signature)
     const isVoidType = this.options.voidTypes.some((voidType) => returnType.symbol?.name === voidType)
     if (isVoidType) return "void"
@@ -25,8 +56,7 @@ export class ControllerTypeImporter {
     return this.program.getTypeChecker().typeToString(returnType, undefined, ts.TypeFormatFlags.NoTruncation)
   }
 
-  public getCommentForClassMethod(className: string, methodName: string): string | undefined {
-    const methodSymbol = this.mustGetMethodSymbol(className, methodName)
+  private getMethodComment(methodSymbol: ts.Symbol): string | undefined {
     const declarations = methodSymbol.getDeclarations()
     if (!declarations || declarations.length === 0) return
     const methodDeclaration = declarations[0]

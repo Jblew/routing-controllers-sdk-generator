@@ -3,7 +3,7 @@ import { ActionScaffold, ControllerScaffold, SdkScaffold } from "./types";
 import { ActionMetadataArgs } from "routing-controllers/types/metadata/args/ActionMetadataArgs";
 import { ParamMetadataArgs } from "routing-controllers/types/metadata/args/ParamMetadataArgs";
 import { ControllerMetadataArgs } from "routing-controllers/types/metadata/args/ControllerMetadataArgs";
-import { ControllerTypeImporter } from "./ControllerTypeImporter";
+import { ArgumentTypeDescriptor, ControllerTypeImporter } from "./ControllerTypeImporter";
 import { Options } from "./options";
 
 export async function generateSDKCode(o: Options): Promise<string> {
@@ -53,7 +53,6 @@ ${Object.entries(sdk)
 interface HttpCallOptions {
   url: string,
   method: string,
-  /* params = query vars */
   params: Record<string, unknown>,
   data: Record<string, unknown>,
 }
@@ -74,18 +73,19 @@ function generateControllerCode(controller: ControllerScaffold, typeImporter: Co
 function generateActionEntry(action: ActionScaffold, typeImporter: ControllerTypeImporter) {
   const name = action.action.method;
   const indentation = ' '.repeat(6)
-  const comment = typeImporter.getCommentForClassMethod(action.controller.target.name, action.action.method)
+  const { comment, returnType, argumentTypes } = typeImporter.getSignatureTypes(action.controller.target.name, action.action.method)
   const commentPadded = comment ? `${comment.split('\n').map((l) => `${indentation}${l.trim()}`).join('\n')}\n` : ''
-  return `${commentPadded}${indentation}${name}: ${generateActionHandler(action, typeImporter)},\n`
+  return `${commentPadded}${indentation}${name}: ${generateActionHandler(action, returnType, argumentTypes)},\n`
 }
 
-function generateActionHandler({ action, params, controller }: ActionScaffold, typeImporter: ControllerTypeImporter) {
+function generateActionHandler({ action, params, controller }: ActionScaffold, returnType: string, argumentTypes: ArgumentTypeDescriptor[]) {
   const args = [
-    ...makeBodyArgs(params),
-    ...makeConfigArg(params),
+    ...makeBodyArgs(params, argumentTypes),
+    ...makeConfigArg(params, argumentTypes),
   ].join(', ')
+  const returnTypeFormatted = returnType.startsWith('Promise<') ? returnType : `Promise<${returnType}>`
   return [
-    `async (${args}): ${makeReturnType(controller, action, typeImporter)} => (await client({`,
+    `async (${args}): ${returnTypeFormatted} => (await client({`,
     `method: '${action.type}',`,
     `url: ${makeUrlGenerator(controller, action, params)},`,
     `data: {${makeBodyParamsObj(params).join(', ')}},`,
@@ -100,22 +100,26 @@ function makeUrlGenerator(controller: ControllerMetadataArgs, action: ActionMeta
   return `'${fullRoute}'${routeParams.map((p) => `.replace(':${p.name}', ${p.name})`).join('')}`
 }
 
-function makeBodyArgs(params: ParamMetadataArgs[]) {
+function makeBodyArgs(params: ParamMetadataArgs[], argumentTypes: ArgumentTypeDescriptor[]) {
   const args = params.filter((p) => p.type === 'body')
   if (args.length === 0) {
     return []
   } else if (args.length > 1) {
     throw new Error('Only one @Body decorator is supported')
   }
+  const type = argumentTypes.find((a) => a.decorators.some((d) => d.expression.getText().startsWith('Body')))
+  if (type) {
+    return [`body: ${type.typeName}`]
+  }
   return ['body: any']
 }
 
-function makeConfigArg(params: ParamMetadataArgs[]) {
+function makeConfigArg(params: ParamMetadataArgs[], argumentTypes: ArgumentTypeDescriptor[]) {
   const args = params.filter((p) => ['query', 'body-param', 'param'].includes(p.type))
   if (args.length === 0) return []
   const names = args.map((p) => p.name!)
   assertNoDuplicates(names)
-  const types = args.map((p) => `${p.name}${paramToType(p)}`)
+  const types = args.map((p) => `${p.name}${paramToType(p, argumentTypes)}`)
   return [`{ ${names.join(', ')} }: { ${types.join(', ')} }`]
 }
 
@@ -140,8 +144,24 @@ function assertNoDuplicates(names: string[]) {
   }
 }
 
-function paramToType(param: ParamMetadataArgs) {
-  if (param.type === 'param') return ': string'
+function paramToType(param: ParamMetadataArgs, argumentTypes: ArgumentTypeDescriptor[]) {
+  if (param.type === 'param') {
+    const arg = argumentTypes.find((a) => a.decorators.find((d) => d.expression.getText().startsWith(`Param('${param.name}'`)))
+    if (arg) {
+      return `${arg.isOptional ? '?' : ''}: ${arg.typeName}`
+    }
+    return `: string`
+  } else if (param.type === 'body-param') {
+    const arg = argumentTypes.find((a) => a.decorators.find((d) => d.expression.getText().startsWith(`BodyParam('${param.name}'`)))
+    if (arg) {
+      return `${arg.isOptional ? '?' : ''}: ${arg.typeName}`
+    }
+  } else if (param.type === 'query') {
+    const arg = argumentTypes.find((a) => a.decorators.find((d) => d.expression.getText().startsWith(`QueryParam('${param.name}'`)))
+    if (arg) {
+      return `${arg.isOptional ? '?' : ''}: ${arg.typeName}`
+    }
+  }
   let typeDirective = ''
   if (!param.required) typeDirective += '?'
   typeDirective += ': '
@@ -165,10 +185,4 @@ function paramExplicitType(t: any): string {
     default:
       return 'any'
   }
-}
-
-function makeReturnType(controller: ControllerMetadataArgs, action: ActionMetadataArgs, typeImporter: ControllerTypeImporter) {
-  const type = typeImporter.getReturnTypeForClassMethod(controller.target.name, action.method)
-  if (type.startsWith('Promise<')) return type
-  return `Promise<${type}>`
 }
