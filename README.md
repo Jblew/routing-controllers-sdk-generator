@@ -1,9 +1,11 @@
 # routing-controllers-sdk-generator
-SDK generator for routing-controllers
+SDK generator for routing-controllers that exports necessary typescript types
+
+
 
 ## Features
 - Generates SDK from routing-controllers
-- Exports all the necessary typescript types — KILLER FEATURE
+- Exports all the necessary typescript types in a single file! — 🚀🏰
 - Incdludes comments in the generated code
 - Request-library agnostic. Works with axios, fetch, superagent, etc.
 - Extensible: you can add your own code to each request: for logging, validation, auth, etc.
@@ -25,21 +27,21 @@ SDK generator for routing-controllers
     import { generateSDK } from 'routing-controllers-sdk-generator';
     import * as fs from 'fs';
     import * as path from 'path';
-
+   
     (async () => {
       const sdk = await generateSDK({
         controllers: { PostsController, UsersController, CommentsController },
       });
-
+   
       fs.writeFileSync(path.join(__dirname, 'sdk.gen.ts'), sdk);
     })();
    ```
 3. Run `ts-node generate-sdk.ts`
 4. Configure your SDKs:
    ```typescript
-  import axios from 'axios';
-  import { makeSDK } from './sdk.gen';
-
+    import axios from 'axios';
+    import { makeSDK } from './sdk.gen';
+   
    const authenticatedSDK = makeSDK({ client: axios.createInstance({ headers: { ... } }) })
    const { Admin, Config, BI } = makeSDK({ client: axios.createInstance({ ... }) })
    const adminSDK = { Admin, Config, BI }
