@@ -170,7 +170,17 @@ export class ControllerTypeImporter {
 
     if (type.isUnionOrIntersection()) {
       for (const intersectionType of type.types) {
-        this.collectSymbolsToEmit(intersectionType, alreadyVisited)
+        const isEnumMember = intersectionType.symbol?.flags === ts.SymbolFlags.EnumMember
+        if (isEnumMember) {
+          const enumDeclarationNode = intersectionType.symbol?.valueDeclaration?.parent
+          if (enumDeclarationNode) {
+            const enumDeclarationType = this.program.getTypeChecker().getTypeAtLocation(enumDeclarationNode)
+            this.collectSymbolsToEmit(enumDeclarationType, alreadyVisited)
+          }
+        }
+        else {
+          this.collectSymbolsToEmit(intersectionType, alreadyVisited)
+        }
       }
     }
 

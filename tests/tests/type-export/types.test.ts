@@ -1,8 +1,6 @@
-import { makeSdk } from "./sdk.gen";
+import { StringEnum, StringEnum2, makeSdk } from "./sdk.gen";
 import { beforeEach, it } from "node:test";
-import assert from "node:assert"
 import { Equal, Expect } from "../utils";
-import { AuthorizationChecker } from "routing-controllers/types/AuthorizationChecker";
 import { Action } from "routing-controllers";
 
 let calls: any[][] = []
@@ -74,5 +72,26 @@ it('Exports listed node_modules types', () => {
   async function typeTest() {
     const ret = await sdk.TypeExport.returnNodeModulesType()
     type Test = Expect<Equal<typeof ret, { a: Action }>>;
+  }
+})
+
+it('Preserves enums', () => {
+  async function typeTest() {
+    const ret = await sdk.TypeExport.returnStringEnum()
+    type Test = Expect<Equal<typeof ret, { a: StringEnum }>>;
+  }
+})
+
+it('Preserves enums inline union', () => {
+  async function typeTest() {
+    const ret = await sdk.TypeExport.returnStringEnumWithInlineUnion()
+    type Test = Expect<Equal<typeof ret, { a: StringEnum | 'parrots' }>>;
+  }
+})
+
+it('Preserves enums union', () => {
+  async function typeTest() {
+    const ret = await sdk.TypeExport.returnStringEnumUnion()
+    type Test = Expect<Equal<typeof ret, { a: StringEnum | StringEnum2 }>>;
   }
 })

@@ -1,0 +1,12 @@
+- [x] Use mocha+chai for tests
+- [-] Test reachability with express
+- [x] Support for controller paths
+- [x] Move path arguments to request config object (so names are preserved)
+- [x] Export typescript return types
+- [x] Export typescript argument types
+- [x] Include comments
+- [x] Write README
+- [ ] Remove isController from options (maybe not needed)?
+- [x] Make sure unions work
+- [x] Make sure enums work
+- [x] Make sure unions of enums work
