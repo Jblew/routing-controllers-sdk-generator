@@ -57,6 +57,21 @@ export class TypeExportController {
   async returnStringEnumWithInlineUnion(): Promise<{ a: StringEnum | 'parrots' }> {
     return { a: 'parrots' }
   }
+
+  @Get('/returnStringUnionAlias')
+  async returnStringUnionAlias(): Promise<{ a: StringUnionAlias }> {
+    return { a: 'parrots' }
+  }
+
+  @Get('/returnInterfaceWithStringUnion')
+  async returnInterfaceWithStringUnion(): Promise<{ a: InterfaceWithStringUnion }> {
+    return { a: { part: 'engine' } }
+  }
+
+  @Get('/returnInferredType')
+  async returnInferredType(): Promise<{ a: Promise<ReturnType<typeof toInferReturnType>> }> {
+    return { a: {} as any }
+  }
 }
 
 interface InterfaceLocalToController {
@@ -84,3 +99,22 @@ export interface FooInterface {
 export interface BarInterface {
   bar: boolean
 }
+
+type StringUnionAlias = 'cows' | 'cats' | 'parrots'
+
+type CarPart = 'engine' | 'wheel' | 'door'
+interface InterfaceWithStringUnion {
+  part: CarPart
+}
+
+async function toInferReturnType() {
+  return {
+    a: null as any as InferredInterface
+  }
+}
+
+interface InferredInterface {
+  partOfInferredInterface: TypeOfPartOfInferredInterface
+}
+
+type TypeOfPartOfInferredInterface = 'a' | 'b' | 'c'

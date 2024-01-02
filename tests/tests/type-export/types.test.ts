@@ -96,3 +96,10 @@ it('Preserves enums union', () => {
   }
 })
 
+
+it('Preserves string union alias', () => {
+  async function typeTest() {
+    const ret = await sdk.TypeExport.returnStringUnionAlias()
+    type Test = Expect<Equal<typeof ret, { a: 'cats' | 'parrots' | 'cows' }>>;
+  }
+})
