@@ -24,7 +24,6 @@ it("Includes comments in the generated code", async () => {
   const code = await generateSDKCode({
     tsconfigPath: `${__dirname}/../../tsconfig.json`,
     isController: (typeName: string, symbol: Symbol, sourceFile: SourceFile) => typeName.endsWith("Controller"),
-    voidTypes: [],
     allowedNodeModules: [],
     skipFile: (sourceFile: SourceFile) => sourceFile.fileName.endsWith(".gen.ts"),
     controllers: [CommentedController],

@@ -6,7 +6,6 @@ export interface Options {
   isController: (className: string, symbol: Symbol, sourceFile: SourceFile) => boolean,
   skipFile: (sourceFile: SourceFile) => boolean,
   allowedNodeModules: string[],
-  voidTypes: string[],
   controllers: ClassConstructor<any>[],
   nameFormatter?: (className: string) => string
 }

@@ -10,7 +10,6 @@ it("Generates SDK", async () => {
   const code = await generateSDKCode({
     tsconfigPath: `${__dirname}/../../tsconfig.json`,
     isController: (typeName: string, symbol: ts.Symbol, sourceFile: ts.SourceFile) => typeName.endsWith("Controller"),
-    voidTypes: [],
     allowedNodeModules: [],
     skipFile: (sourceFile: ts.SourceFile) => sourceFile.fileName.endsWith(".gen.ts"),
     controllers: [BlogController],

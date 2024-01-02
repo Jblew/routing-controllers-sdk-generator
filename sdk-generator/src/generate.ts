@@ -108,7 +108,7 @@ function makeBodyArgs(params: ParamMetadataArgs[], argumentTypes: ArgumentTypeDe
     throw new Error('Only one @Body decorator is supported')
   }
   const type = argumentTypes.find((a) => a.decorators.some((d) => d.expression.getText().startsWith('Body')))
-  if (type) {
+  if (type && type.typeName !== 'unknown') {
     return [`body: ${type.typeName}`]
   }
   return ['body: any']
@@ -145,22 +145,22 @@ function assertNoDuplicates(names: string[]) {
 }
 
 function paramToType(param: ParamMetadataArgs, argumentTypes: ArgumentTypeDescriptor[]) {
-  if (param.type === 'param') {
-    const arg = argumentTypes.find((a) => a.decorators.find((d) => d.expression.getText().startsWith(`Param('${param.name}'`)))
-    if (arg) {
+  const getArgTypeExpr = (exprStart: string) => {
+    const arg = argumentTypes.find((a) => a.decorators.find((d) => d.expression.getText().startsWith(exprStart)))
+    if (arg && arg.typeName !== 'unknown') {
       return `${arg.isOptional ? '?' : ''}: ${arg.typeName}`
     }
+  }
+  if (param.type === 'param') {
+    const expr = getArgTypeExpr(`Param('${param.name}'`)
+    if (expr) return expr
     return `: string`
   } else if (param.type === 'body-param') {
-    const arg = argumentTypes.find((a) => a.decorators.find((d) => d.expression.getText().startsWith(`BodyParam('${param.name}'`)))
-    if (arg) {
-      return `${arg.isOptional ? '?' : ''}: ${arg.typeName}`
-    }
+    const expr = getArgTypeExpr(`BodyParam('${param.name}'`)
+    if (expr) return expr
   } else if (param.type === 'query') {
-    const arg = argumentTypes.find((a) => a.decorators.find((d) => d.expression.getText().startsWith(`QueryParam('${param.name}'`)))
-    if (arg) {
-      return `${arg.isOptional ? '?' : ''}: ${arg.typeName}`
-    }
+    const expr = getArgTypeExpr(`QueryParam('${param.name}'`)
+    if (expr) return expr
   }
   let typeDirective = ''
   if (!param.required) typeDirective += '?'

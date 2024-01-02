@@ -95,3 +95,4 @@ it('Preserves enums union', () => {
     type Test = Expect<Equal<typeof ret, { a: StringEnum | StringEnum2 }>>;
   }
 })
+

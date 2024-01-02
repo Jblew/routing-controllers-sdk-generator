@@ -1,4 +1,4 @@
-import { Action, BodyParam, Get, JsonController, Param, Post, QueryParam, RoutingControllersOptions } from "routing-controllers";
+import { Action, Get, JsonController } from "routing-controllers";
 
 @JsonController('', {})
 export class TypeExportController {
@@ -75,4 +75,12 @@ export enum StringEnum {
 export enum StringEnum2 {
   Horses = 'horses',
   Cows = 'cows'
+}
+
+export interface FooInterface {
+  foo: number
+}
+
+export interface BarInterface {
+  bar: boolean
 }

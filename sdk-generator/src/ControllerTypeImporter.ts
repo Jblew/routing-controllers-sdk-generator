@@ -1,4 +1,5 @@
 import * as ts from "typescript"
+import * as fs from "fs"
 import * as path from "path"
 import { Options } from "./options"
 
@@ -9,20 +10,30 @@ export interface ArgumentTypeDescriptor {
   isOptional: boolean
 }
 
+const allowedSyntaxKinds = [
+  ts.SyntaxKind.ClassDeclaration,
+  ts.SyntaxKind.InterfaceDeclaration,
+  ts.SyntaxKind.EnumDeclaration,
+  ts.SyntaxKind.TypeAliasDeclaration,
+  ts.SyntaxKind.VariableDeclaration,
+]
+
 export class ControllerTypeImporter {
   private controllerClassSymbols: { [name: string]: ts.Symbol } = {}
   private symbolsToEmit: Set<ts.Symbol> = new Set()
+  private typeChecker: ts.TypeChecker
 
   constructor(
     private program: ts.Program,
     private options: Options,
   ) {
-    this.extractTypes()
+    this.typeChecker = program.getTypeChecker()
+    this.loadControllerSymbols()
   }
 
   public getSignatureTypes(className: string, methodName: string) {
     const methodSymbol = this.mustGetMethodSymbol(className, methodName)
-    const type = this.program.getTypeChecker().getTypeOfSymbolAtLocation(methodSymbol, methodSymbol.valueDeclaration!)
+    const type = this.typeChecker.getTypeOfSymbolAtLocation(methodSymbol, methodSymbol.valueDeclaration!)
     const signature = type.getCallSignatures()[0]
     if (!signature) throw new Error(`Method signature for ${className}.${methodName} not found`)
     const comment = this.getMethodComment(methodSymbol)
@@ -36,10 +47,10 @@ export class ControllerTypeImporter {
     const args: ArgumentTypeDescriptor[] = []
     for (const parameter of parameters) {
       const paramName = parameter.name
-      const type = this.program.getTypeChecker().getTypeOfSymbolAtLocation(parameter, parameter.valueDeclaration!)
+      const type = this.typeChecker.getTypeOfSymbolAtLocation(parameter, parameter.valueDeclaration!)
       const isOptional = type.isUnion() && type.types.some((t) => t.flags === ts.TypeFlags.Undefined)
-      this.collectSymbolsToEmit(type)
-      const typeName = this.program.getTypeChecker().typeToString(type, undefined, ts.TypeFormatFlags.NoTruncation)
+      this.collectTypeSymbols(type, new Set<ts.Symbol>())
+      const typeName = this.typeChecker.typeToString(type, undefined, ts.TypeFormatFlags.NoTruncation)
       const valueDeclaration = parameter.valueDeclaration
       const modifiers = valueDeclaration && ts.isParameter(valueDeclaration) ? valueDeclaration.modifiers : undefined
       const decorators: ts.Decorator[] = modifiers ? modifiers.filter((m) => m.kind === ts.SyntaxKind.Decorator).map((d) => d as ts.Decorator) : []
@@ -49,11 +60,9 @@ export class ControllerTypeImporter {
   }
 
   private getReturnType(signature: ts.Signature) {
-    const returnType = this.program.getTypeChecker().getReturnTypeOfSignature(signature)
-    const isVoidType = this.options.voidTypes.some((voidType) => returnType.symbol?.name === voidType)
-    if (isVoidType) return "void"
-    this.collectSymbolsToEmit(returnType)
-    return this.program.getTypeChecker().typeToString(returnType, undefined, ts.TypeFormatFlags.NoTruncation)
+    const returnType = this.typeChecker.getReturnTypeOfSignature(signature)
+    this.collectTypeSymbols(returnType, new Set<ts.Symbol>())
+    return this.typeChecker.typeToString(returnType, undefined, ts.TypeFormatFlags.NoTruncation)
   }
 
   private getMethodComment(methodSymbol: ts.Symbol): string | undefined {
@@ -87,68 +96,32 @@ export class ControllerTypeImporter {
       }
       for (const declaration of declarations) {
         const nodeKind = declaration.kind
-        if (
-          nodeKind === ts.SyntaxKind.ClassDeclaration ||
-          nodeKind === ts.SyntaxKind.InterfaceDeclaration ||
-          nodeKind === ts.SyntaxKind.EnumDeclaration ||
-          nodeKind === ts.SyntaxKind.TypeAliasDeclaration
-        ) {
+        if (allowedSyntaxKinds.includes(nodeKind)) {
           const sourceFile = declaration.getSourceFile()
           const code = printer.printNode(ts.EmitHint.Unspecified, declaration, sourceFile)
           out += `// Source: ${sourceFile.fileName}\n`
           out += code
           out += "\n\n"
-        } else {
-          const sourceFile = declaration.getSourceFile()
-          const code = printer.printNode(ts.EmitHint.Unspecified, declaration, sourceFile)
         }
       }
     }
     return out
   }
 
-  private collectSymbolsToEmit(type: ts.Type, alreadyVisited: Set<ts.Symbol> = new Set()) {
+  private collectTypeSymbols(type: ts.Type, alreadyVisited: Set<ts.Symbol>) {
     const isPrimitive = type.isStringLiteral() || type.isNumberLiteral()
     if (isPrimitive) {
       return
     }
-    const symbol =
-      type.symbol && type.symbol?.name.startsWith("__") && type.aliasSymbol
-        ? type.aliasSymbol
-        : type.symbol ?? type.aliasSymbol
-
-    if (symbol) {
-      if (alreadyVisited.has(symbol)) {
-        return
-      }
-      alreadyVisited.add(symbol)
-    }
-
-    const isAlreadyCollected = symbol && this.symbolsToEmit.has(symbol)
-    if (isAlreadyCollected) {
-      return
-    }
-    const sourceFile = symbol?.getDeclarations()?.[0]?.getSourceFile() || symbol?.valueDeclaration?.getSourceFile()
-    const canEmitFile = sourceFile && this.canEmitFromFile(sourceFile)
-    const syntaxKind = symbol?.valueDeclaration?.kind
-    const allowedSyntaxKinds = [
-      ts.SyntaxKind.ClassDeclaration,
-      ts.SyntaxKind.InterfaceDeclaration,
-      ts.SyntaxKind.EnumDeclaration,
-      ts.SyntaxKind.TypeAliasDeclaration,
-      ts.SyntaxKind.VariableDeclaration,
-    ]
-    const canEmitSyntaxKind = !syntaxKind || allowedSyntaxKinds.includes(syntaxKind)
-    if (canEmitFile && canEmitSyntaxKind) {
-      this.symbolsToEmit.add(symbol)
-    }
+    this.collectSymbol(type.symbol, alreadyVisited)
+    this.collectSymbol(type.aliasSymbol, alreadyVisited)
 
     for (const typeArgument of (type as ts.TypeReference).typeArguments ?? []) {
-      this.collectSymbolsToEmit(typeArgument, alreadyVisited)
+      this.collectTypeSymbols(typeArgument, alreadyVisited)
     }
 
     for (const aliasArg of type.aliasTypeArguments ?? []) {
-      this.collectSymbolsToEmit(aliasArg, alreadyVisited)
+      this.collectTypeSymbols(aliasArg, alreadyVisited)
     }
 
     // Support conditional types
@@ -164,7 +137,7 @@ export class ControllerTypeImporter {
     ]
     for (const conditionalType of conditionals) {
       if (conditionalType) {
-        this.collectSymbolsToEmit(conditionalType, alreadyVisited)
+        this.collectTypeSymbols(conditionalType, alreadyVisited)
       }
     }
 
@@ -174,27 +147,61 @@ export class ControllerTypeImporter {
         if (isEnumMember) {
           const enumDeclarationNode = intersectionType.symbol?.valueDeclaration?.parent
           if (enumDeclarationNode) {
-            const enumDeclarationType = this.program.getTypeChecker().getTypeAtLocation(enumDeclarationNode)
-            this.collectSymbolsToEmit(enumDeclarationType, alreadyVisited)
+            const enumDeclarationType = this.typeChecker.getTypeAtLocation(enumDeclarationNode)
+            if (enumDeclarationType.symbol) {
+              this.collectSymbol(enumDeclarationType.symbol, alreadyVisited)
+            }
           }
         }
         else {
-          this.collectSymbolsToEmit(intersectionType, alreadyVisited)
+          this.collectTypeSymbols(intersectionType, alreadyVisited)
         }
       }
     }
+  }
 
-    for (const prop of symbol?.members?.values() ?? []) {
-      const propTypeVD = this.program.getTypeChecker().getTypeOfSymbolAtLocation(prop, prop.valueDeclaration!)
-      this.collectSymbolsToEmit(propTypeVD, alreadyVisited)
+  private collectSymbol(symbol: ts.Symbol | undefined, alreadyVisited: Set<ts.Symbol>) {
+    if (!symbol) return
+    const isAlreadyCollected = this.symbolsToEmit.has(symbol)
+    const isAlreadyVisited = alreadyVisited.has(symbol)
+    if (isAlreadyCollected || isAlreadyVisited) return
+    alreadyVisited.add(symbol)
+    this.collectSymbolDeclarations(symbol, alreadyVisited)
+    this.collectSymbolMembers(symbol, alreadyVisited)
+  }
+
+  private collectSymbolMembers(symbol: ts.Symbol, alreadyVisited: Set<ts.Symbol>) {
+    for (const prop of symbol.members?.values() ?? []) {
+      const propTypeVD = this.typeChecker.getTypeOfSymbolAtLocation(prop, prop.valueDeclaration!)
+      this.collectTypeSymbols(propTypeVD, alreadyVisited)
     }
   }
 
-  private extractTypes() {
-    const typeChecker = this.program.getTypeChecker()
+  private collectSymbolDeclarations(symbol: ts.Symbol, alreadyVisited: Set<ts.Symbol>) {
+    for (const declaration of symbol.declarations ?? []) {
+      if (declaration.kind === ts.SyntaxKind.TypeAliasDeclaration) {
+        this.collectAliasDeclaration(declaration as ts.TypeAliasDeclaration, alreadyVisited)
+      }
+      const sourceFile = declaration.getSourceFile()
+      const canEmitFile = sourceFile && this.canEmitFromFile(sourceFile)
+      const syntaxKind = declaration.kind
+      const canEmitSyntaxKind = !syntaxKind || allowedSyntaxKinds.includes(syntaxKind)
+      if (canEmitFile && canEmitSyntaxKind) {
+        this.symbolsToEmit.add(symbol)
+      }
+    }
+  }
 
+  private collectAliasDeclaration(declaration: ts.TypeAliasDeclaration, alreadyVisited: Set<ts.Symbol>) {
+    const declarationTypeReference = declaration.type as ts.TypeReferenceNode | undefined
+    const typeNameSymbol = declarationTypeReference && this.typeChecker.getSymbolAtLocation(declarationTypeReference.typeName)
+    if (typeNameSymbol) {
+      this.collectSymbol(typeNameSymbol, alreadyVisited)
+    }
+  }
+
+  private loadControllerSymbols() {
     const symbols: { [name: string]: ts.Symbol } = {}
-
     const { isController } = this.options
     this.program
       .getSourceFiles()
@@ -214,7 +221,7 @@ export class ControllerTypeImporter {
             ts.forEachChild(node, (n) => inspect(n, tc))
           }
         }
-        inspect(sourceFile, typeChecker)
+        inspect(sourceFile, this.typeChecker)
       })
     this.controllerClassSymbols = symbols
   }
